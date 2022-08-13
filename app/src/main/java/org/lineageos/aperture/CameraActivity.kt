@@ -16,6 +16,7 @@ import android.graphics.Rect
 import android.graphics.drawable.AnimatedVectorDrawable
 import android.graphics.drawable.ColorDrawable
 import android.icu.text.DecimalFormat
+import android.location.Criteria
 import android.location.Location
 import android.location.LocationManager
 import android.net.Uri
@@ -301,8 +302,25 @@ open class CameraActivity : AppCompatActivity() {
             if (permissionsUtils.locationPermissionsGranted()
                 && sharedPreferences.saveLocation == true
             ) {
+                // The "fused" provider always had this name, but it was made
+                // public only in S
+                val fusedProvider = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    LocationManager.FUSED_PROVIDER
+                } else {
+                    "fused"
+                }
+
+                // Best provider returns the first provider that matches our criteria
+                // We only care if fused matches our criteria, if it does use it, otherwise
+                // register updates from all the providers ( including fused )
+                val providers = locationManager.getBestProvider(Criteria().apply {
+                    accuracy = Criteria.ACCURACY_FINE
+                }, true).takeIf {
+                    it == fusedProvider
+                }?.let { listOf(it) } ?: locationManager.allProviders
+
                 // Request location updates
-                locationManager.allProviders.forEach {
+                providers.forEach {
                     LocationManagerCompat.requestLocationUpdates(
                         locationManager,
                         it,
