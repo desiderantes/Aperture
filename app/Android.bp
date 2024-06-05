@@ -1,5 +1,5 @@
 //
-// SPDX-FileCopyrightText: 2022-2023 The LineageOS Project
+// SPDX-FileCopyrightText: 2022-2024 The LineageOS Project
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,8 +16,13 @@ android_app {
     resource_dirs: ["src/main/res"],
     manifest: "src/main/AndroidManifest.xml",
 
-    sdk_version: "33",
+    sdk_version: "34",
     product_specific: true,
+
+    required: [
+        "ApertureFrameworksBaseOverlay",
+        "ApertureLensLauncher",
+    ],
 
     static_libs: [
         // DO NOT EDIT THIS SECTION MANUALLY
@@ -41,11 +46,9 @@ android_app {
         "Aperture_io.coil-kt_coil",
         "Aperture_io.coil-kt_coil-video",
     ],
+
     optional_uses_libs: [
         "androidx.camera.extensions.impl"
-    ],
-    required: [
-        "ApertureLensLauncher",
     ],
 
     optimize: {

@@ -7,35 +7,42 @@ package org.lineageos.aperture.qr
 
 import android.app.Activity
 import android.app.KeyguardManager
+import android.app.PendingIntent
 import android.content.ClipData
 import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Intent
 import android.os.Build
-import android.os.Handler
-import android.os.LocaleList
-import android.os.Looper
-import android.text.SpannableString
 import android.text.method.LinkMovementMethod
+import android.view.textclassifier.TextClassificationManager
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.appcompat.widget.LinearLayoutCompat.LayoutParams
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.cardview.widget.CardView
+import androidx.core.graphics.drawable.DrawableCompat
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
 import com.google.zxing.BinaryBitmap
 import com.google.zxing.MultiFormatReader
 import com.google.zxing.Result
 import com.google.zxing.common.HybridBinarizer
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.lineageos.aperture.R
 import org.lineageos.aperture.ext.*
+import kotlin.reflect.cast
 
-class QrImageAnalyzer(private val activity: Activity) : ImageAnalysis.Analyzer {
+class QrImageAnalyzer(private val activity: Activity, private val scope: CoroutineScope) :
+    ImageAnalysis.Analyzer {
+    // Views
     private val bottomSheetDialog by lazy {
         BottomSheetDialog(activity).apply {
             setContentView(R.layout.qr_bottom_sheet_dialog)
@@ -48,9 +55,7 @@ class QrImageAnalyzer(private val activity: Activity) : ImageAnalysis.Analyzer {
         bottomSheetDialog.findViewById<TextView>(R.id.title)!!
     }
     private val bottomSheetDialogData by lazy {
-        bottomSheetDialog.findViewById<TextView>(R.id.data)!!.apply {
-            setTextClassifier(QrTextClassifier(context, textClassifier))
-        }
+        bottomSheetDialog.findViewById<TextView>(R.id.data)!!
     }
     private val bottomSheetDialogIcon by lazy {
         bottomSheetDialog.findViewById<ImageView>(R.id.icon)!!
@@ -65,77 +70,115 @@ class QrImageAnalyzer(private val activity: Activity) : ImageAnalysis.Analyzer {
         bottomSheetDialog.findViewById<LinearLayout>(R.id.actionsLayout)!!
     }
 
-    private val reader by lazy { MultiFormatReader() }
-
+    // System services
     private val clipboardManager by lazy { activity.getSystemService(ClipboardManager::class.java) }
     private val keyguardManager by lazy { activity.getSystemService(KeyguardManager::class.java) }
+    private val textClassificationManager by lazy {
+        activity.getSystemService(TextClassificationManager::class.java)
+    }
+
+    // QR
+    private val reader by lazy { MultiFormatReader() }
+
+    private val qrTextClassifier by lazy {
+        QrTextClassifier(activity, textClassificationManager.textClassifier)
+    }
 
     override fun analyze(image: ImageProxy) {
-        val source = image.planarYUVLuminanceSource
+        image.use {
+            val source = image.planarYUVLuminanceSource
 
-        val result = runCatching {
-            reader.decodeWithState(BinaryBitmap(HybridBinarizer(source)))
-        }.getOrNull() ?: runCatching {
-            reader.decodeWithState(BinaryBitmap(HybridBinarizer(source.invert())))
-        }.getOrNull()
+            val result = runCatching {
+                reader.decodeWithState(BinaryBitmap(HybridBinarizer(source)))
+            }.getOrNull() ?: runCatching {
+                reader.decodeWithState(BinaryBitmap(HybridBinarizer(source.invert())))
+            }.getOrNull()
 
-        result?.let {
-            showQrDialog(it)
+            result?.let {
+                showQrDialog(it)
+            }
+
+            reader.reset()
         }
-
-        reader.reset()
-        image.close()
     }
 
     private fun showQrDialog(result: Result) {
-        activity.runOnUiThread {
+        scope.launch(Dispatchers.Main) {
             if (bottomSheetDialog.isShowing) {
-                return@runOnUiThread
+                return@launch
             }
 
-            // Classify message
-            val span = SpannableString(result.text)
-            bottomSheetDialogData.text = span
-            Thread {
-                val textClassification = bottomSheetDialogData.textClassifier.classifyText(
-                    span, 0, span.length, LocaleList.getDefault()
-                )
+            val text = result.text ?: return@launch
+            bottomSheetDialogData.text = text
 
-                activity.runOnUiThread {
-                    bottomSheetDialogData.text = textClassification.text
-                    bottomSheetDialogActionsLayout.removeAllViews()
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
-                        textClassification.actions.isNotEmpty()
-                    ) {
-                        with(textClassification.actions[0]) {
-                            bottomSheetDialogCardView.setOnClickListener { actionIntent.send() }
-                            bottomSheetDialogData.movementMethod = null
-                            bottomSheetDialogTitle.text = this.title
-                            this.icon.loadDrawableAsync(activity, {
-                                bottomSheetDialogIcon.setImageDrawable(it)
-                            }, Handler(Looper.getMainLooper()))
+            // Classify message
+            val textClassification = withContext(Dispatchers.IO) {
+                qrTextClassifier.classifyText(result)
+            }
+
+            bottomSheetDialogData.text = textClassification.text
+            bottomSheetDialogActionsLayout.removeAllViews()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
+                textClassification.actions.isNotEmpty()
+            ) {
+                with(textClassification.actions[0]) {
+                    bottomSheetDialogCardView.setOnClickListener {
+                        try {
+                            actionIntent.sendWithBalAllowed()
+                        } catch (e: PendingIntent.CanceledException) {
+                            Toast.makeText(
+                                activity,
+                                R.string.qr_no_app_available_for_action,
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
-                        for (action in textClassification.actions.drop(1)) {
-                            bottomSheetDialogActionsLayout.addView(inflateButton().apply {
-                                setOnClickListener { action.actionIntent.send() }
-                                text = action.title
-                                action.icon.loadDrawableAsync(activity, {
-                                    it.setBounds(0, 0, 15.px, 15.px)
-                                    setCompoundDrawables(
-                                        it, null, null, null
-                                    )
-                                }, Handler(Looper.getMainLooper()))
-                            })
+                    }
+                    bottomSheetDialogCardView.contentDescription = contentDescription
+                    bottomSheetDialogData.movementMethod = null
+                    bottomSheetDialogTitle.text = title
+                    bottomSheetDialogIcon.setImageIcon(icon)
+                }
+                for (action in textClassification.actions.drop(1)) {
+                    bottomSheetDialogActionsLayout.addView(inflateButton().apply {
+                        setOnClickListener {
+                            try {
+                                action.actionIntent.sendWithBalAllowed()
+                            } catch (e: PendingIntent.CanceledException) {
+                                Toast.makeText(
+                                    activity,
+                                    R.string.qr_no_app_available_for_action,
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
                         }
-                    } else {
-                        bottomSheetDialogCardView.setOnClickListener {}
-                        bottomSheetDialogTitle.text = activity.resources.getText(R.string.qr_text)
-                        bottomSheetDialogIcon.setImageDrawable(
-                            AppCompatResources.getDrawable(activity, R.drawable.ic_qr_type_text)
+                        contentDescription = action.contentDescription
+                        this.text = action.title
+                        withContext(Dispatchers.IO) {
+                            val drawable = action.icon.loadDrawable(activity)!!
+                            drawable.setBounds(0, 0, 15.px, 15.px)
+                            withContext(Dispatchers.Main) {
+                                setCompoundDrawables(
+                                    drawable, null, null, null
+                                )
+                            }
+                        }
+                    })
+                }
+            } else {
+                bottomSheetDialogCardView.setOnClickListener {}
+                bottomSheetDialogTitle.text = activity.resources.getText(R.string.qr_text)
+                bottomSheetDialogIcon.setImageDrawable(AppCompatResources.getDrawable(
+                    activity, R.drawable.ic_text_snippet
+                )?.let {
+                    DrawableCompat.wrap(it.mutate()).apply {
+                        DrawableCompat.setTint(
+                            this, activity.getThemeColor(
+                                com.google.android.material.R.attr.colorOnBackground
+                            )
                         )
                     }
-                }
-            }.start()
+                })
+            }
 
             // Make links clickable if not on locked keyguard
             bottomSheetDialogData.movementMethod =
@@ -146,7 +189,7 @@ class QrImageAnalyzer(private val activity: Activity) : ImageAnalysis.Analyzer {
             bottomSheetDialogCopy.setOnClickListener {
                 clipboardManager.setPrimaryClip(
                     ClipData.newPlainText(
-                        "", result.text
+                        "", text
                     )
                 )
             }
@@ -171,12 +214,13 @@ class QrImageAnalyzer(private val activity: Activity) : ImageAnalysis.Analyzer {
         }
     }
 
-    private fun inflateButton(): MaterialButton {
-        val button = activity.layoutInflater.inflate(
-            R.layout.qr_bottom_sheet_action_button, bottomSheetDialogActionsLayout, false
-        ) as MaterialButton
-        return button.apply {
-            layoutParams = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
-        }
+    private fun inflateButton() = MaterialButton::class.cast(
+        activity.layoutInflater.inflate(
+            R.layout.qr_bottom_sheet_action_button,
+            bottomSheetDialogActionsLayout,
+            false
+        )
+    ).apply {
+        layoutParams = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
     }
 }
