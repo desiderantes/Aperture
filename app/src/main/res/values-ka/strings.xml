@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-     SPDX-FileCopyrightText: 2022-2023 The LineageOS Project
+     SPDX-FileCopyrightText: 2022-2024 The LineageOS Project
      SPDX-License-Identifier: Apache-2.0
 -->
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
@@ -147,7 +147,6 @@
     <string name="error_no_cameras_available">კამერა ვერ მოიძებნა მოწყობილობაზე, პროგრამა ვერ გაეშვება.</string>
     <string name="gesture_action_shutter">ფოტოჩამკეტი</string>
     <string name="gesture_action_zoom">მოახლოება</string>
-    <string name="gesture_action_volume">ხმოვანება</string>
     <string name="gesture_action_nothing">არცერთი</string>
     <string name="thermal_status_moderate">საშუალო გადახურების არიდება, დარწმუნდით, რომ მოწყობილობა მზის სხვების ქვეშ არაა.</string>
     <string name="thermal_status_severe">ძლიერი გადახურების არიდება, სასურველია, ცოტა გააგრილოთ მოწყობილობა.</string>

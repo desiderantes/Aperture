@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-     SPDX-FileCopyrightText: 2022-2023 The LineageOS Project
+     SPDX-FileCopyrightText: 2022-2024 The LineageOS Project
      SPDX-License-Identifier: Apache-2.0
 -->
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
@@ -58,6 +58,8 @@
     <string name="qr_tel_title">Clame numar di telefon</string>
     <string name="qr_tel_content_description">Clame il numar di telefon</string>
     <string name="qr_text">Test</string>
+    <string name="qr_upi_title">Sielç la aplicazion par paiâ</string>
+    <string name="qr_upi_content_description">Vierç chest colegament UPI cu la aplicazion adate se supuartât</string>
     <string name="qr_uri_title">Vierç URL</string>
     <string name="qr_uri_content_description">Vierç chest URL cu la aplicazion adate se supuartât</string>
     <string name="qr_vin_title">Cîr VIN</string>
@@ -147,7 +149,6 @@
     <string name="error_no_cameras_available">No je stade cjatade nissune fotocjamare sul dispositîf, impussibil inviâ la aplicazion.</string>
     <string name="gesture_action_shutter">Oturadôr</string>
     <string name="gesture_action_zoom">Zoom</string>
-    <string name="gesture_action_volume">Volum</string>
     <string name="gesture_action_nothing">Nuie</string>
     <string name="thermal_status_moderate">Moderade limitazion termiche in vore, controle che il dispositîf nol sedi sot de lûs solâr direte.</string>
     <string name="thermal_status_severe">Grivie limitazion termiche in vore, al è conseât lassâ che il dispositîf si sfredi un pôc.</string>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-     SPDX-FileCopyrightText: 2022-2023 The LineageOS Project
+     SPDX-FileCopyrightText: 2022-2024 The LineageOS Project
      SPDX-License-Identifier: Apache-2.0
 -->
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
@@ -147,7 +147,6 @@
     <string name="error_no_cameras_available">Na zařízení nebyly nalezeny žádné fotoaparáty, nelze spustit aplikaci.</string>
     <string name="gesture_action_shutter">Závěrka</string>
     <string name="gesture_action_zoom">Přiblížení</string>
-    <string name="gesture_action_volume">Hlasitost</string>
     <string name="gesture_action_nothing">Žádná akce</string>
     <string name="thermal_status_moderate">Mírné tepelné omezení, ujistěte se, že zařízení není na přímém slunečním světle.</string>
     <string name="thermal_status_severe">Silné tepelné omezení, doporučuje se nechat zařízení trochu vychladnout.</string>
